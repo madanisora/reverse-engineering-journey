@@ -84,6 +84,46 @@ Password: 6b4a@password
 [+] FLAG{SoulReaper_XOR_Crackme}
 ```
 
+## Verification
+
+The derived formula was cross-checked through two independent paths:
+
+1. **Native binary** (WSL2, Linux ELF) — ran `./XorGate` directly with
+   `Username: Hi` / `Password: 6b4a@password` -> `Access granted!`
+2. **Reconstructed C source** (credit: `#rvze`, see Credits below) —
+   recompiled with `gcc test.c -o test` on Windows, same input/output ->
+   confirms the disassembly-derived formula matches the original source
+   logic exactly.
+
+## Methodology note
+
+Instead of reading the full `pdf @ main` output line by line, targeted
+`grep` searches were used to jump straight to the relevant instructions:
+
+- `grep "xor"` -> filter out the `xor reg,reg` zeroing idiom (e.g.
+  `xor eax, eax`, used by compilers to set a register to 0 — not encryption)
+  from real data transformations like `xor al, [var]`
+- `grep "movabs"` -> locate hidden string constants loaded as little-endian
+  hex literals
+- `grep "cmp"` -> locate the length check and the byte-by-byte comparison
+  loop
+
+**Tip:** `r2` outputs ANSI color codes by default, which insert hidden
+characters *inside* colored words (e.g. between `xor` and `al`). This
+silently breaks `grep` matches like `"xor al"` even though the text looks
+correct on screen. Disable color before piping to grep:
+```bash
+r2 -q -e scr.color=0 -c 'aaa; pdf @ main' XorGate | grep -n "xor"
+```
+
+## Credits
+
+The derivation above was worked out independently from `radare2`
+disassembly. It was then cross-verified against a community C
+reconstruction of this crackme by **`#rvze`** (Telegram:
+[@internetrvze](https://t.me/internetrvze)), used solely for verification —
+not as the source of the original analysis.
+
 ## Category
 
 XOR-based dynamic password derivation (single-byte key `0x23`) + hex
